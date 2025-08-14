@@ -22,6 +22,19 @@ export default function AdminPage() {
     }).format(preco)
   }
 
+  // Funções de navegação
+  const irParaProdutos = () => {
+    window.location.href = '/admin/produtos'
+  }
+
+  const irParaPedidos = () => {
+    window.location.href = '/admin/pedidos'
+  }
+
+  const irParaRelatorios = () => {
+    window.location.href = '/admin/relatorios'
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -78,12 +91,15 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Cards de Ação */}
+        {/* Cards de Ação - CORRIGIDOS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 rounded-xl text-white">
             <h2 className="text-xl font-bold mb-4">📦 Produtos</h2>
             <p className="mb-4 opacity-90">Gerenciar 39+ produtos Apple</p>
-            <button className="bg-white text-blue-600 px-4 py-2 rounded-lg font-bold hover:bg-gray-100 transition-colors">
+            <button 
+              onClick={irParaProdutos}
+              className="bg-white text-blue-600 px-4 py-2 rounded-lg font-bold hover:bg-gray-100 transition-colors"
+            >
               Gerenciar Produtos
             </button>
           </div>
@@ -91,7 +107,10 @@ export default function AdminPage() {
           <div className="bg-gradient-to-r from-green-600 to-green-700 p-6 rounded-xl text-white">
             <h2 className="text-xl font-bold mb-4">🛒 Pedidos</h2>
             <p className="mb-4 opacity-90">Acompanhar pedidos dos clientes</p>
-            <button className="bg-white text-green-600 px-4 py-2 rounded-lg font-bold hover:bg-gray-100 transition-colors">
+            <button 
+              onClick={irParaPedidos}
+              className="bg-white text-green-600 px-4 py-2 rounded-lg font-bold hover:bg-gray-100 transition-colors"
+            >
               Ver Pedidos
             </button>
           </div>
@@ -99,7 +118,10 @@ export default function AdminPage() {
           <div className="bg-gradient-to-r from-purple-600 to-purple-700 p-6 rounded-xl text-white">
             <h2 className="text-xl font-bold mb-4">📊 Relatórios</h2>
             <p className="mb-4 opacity-90">Analytics e vendas</p>
-            <button className="bg-white text-purple-600 px-4 py-2 rounded-lg font-bold hover:bg-gray-100 transition-colors">
+            <button 
+              onClick={irParaRelatorios}
+              className="bg-white text-purple-600 px-4 py-2 rounded-lg font-bold hover:bg-gray-100 transition-colors"
+            >
               Ver Relatórios
             </button>
           </div>
