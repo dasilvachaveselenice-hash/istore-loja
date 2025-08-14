@@ -24,33 +24,108 @@ export default function GerenciarProdutos() {
   const [saving, setSaving] = useState<number | null>(null)
   const [filtro, setFiltro] = useState('')
   const [categoriaFiltro, setCategoriaFiltro] = useState('todas')
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [supabaseConnected, setSupabaseConnected] = useState(false)
 
-  // Carregar produtos do Supabase
+  // Produtos padrão para fallback
+  const produtosPadrao: Product[] = [
+    {
+      id: 1,
+      nome: 'iPhone 16 Pro Max 256GB',
+      categoria: 'iPhone',
+      preco: 6999.00,
+      preco_original: 8499.00,
+      estoque: 6,
+      ativo: true,
+      imagem: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=100&h=100&fit=crop',
+      descricao: 'iPhone 16 Pro Max com chip A18 Pro',
+      rating: 4.9,
+      reviews: 1247
+    },
+    {
+      id: 2,
+      nome: 'iPhone 16 Pro 128GB',
+      categoria: 'iPhone',
+      preco: 5999.00,
+      preco_original: 7499.00,
+      estoque: 4,
+      ativo: true,
+      imagem: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=100&h=100&fit=crop',
+      descricao: 'iPhone 16 Pro com chip A18 Pro',
+      rating: 4.9,
+      reviews: 987
+    },
+    {
+      id: 3,
+      nome: 'iPad Pro 12.9" M2 128GB',
+      categoria: 'iPad',
+      preco: 5499.00,
+      preco_original: 6799.00,
+      estoque: 3,
+      ativo: true,
+      imagem: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=100&h=100&fit=crop',
+      descricao: 'iPad Pro com chip M2',
+      rating: 4.8,
+      reviews: 892
+    },
+    {
+      id: 4,
+      nome: 'MacBook Air M2 256GB',
+      categoria: 'MacBook',
+      preco: 7999.00,
+      preco_original: 9999.00,
+      estoque: 2,
+      ativo: true,
+      imagem: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=100&h=100&fit=crop',
+      descricao: 'MacBook Air com chip M2',
+      rating: 4.9,
+      reviews: 567
+    },
+    {
+      id: 5,
+      nome: 'Apple Watch Series 9 45mm',
+      categoria: 'Apple Watch',
+      preco: 2299.00,
+      preco_original: 2899.00,
+      estoque: 5,
+      ativo: true,
+      imagem: 'https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?w=100&h=100&fit=crop',
+      descricao: 'Apple Watch Series 9 com GPS',
+      rating: 4.8,
+      reviews: 743
+    }
+  ]
+
+  // Carregar produtos
   useEffect(() => {
     loadProdutos()
   }, [])
 
   const loadProdutos = async () => {
+    console.log('🔍 Carregando produtos...')
+    setLoading(true)
+    
     try {
-      setLoading(true)
+      // Tentar carregar do Supabase
       const { data, error } = await supabase
         .from('produtos')
         .select('*')
         .order('categoria', { ascending: true })
-        .order('nome', { ascending: true })
 
       if (error) {
-        console.error('Erro ao carregar produtos:', error)
-        alert('Erro ao carregar produtos do banco de dados')
-        return
+        console.error('❌ Erro Supabase:', error)
+        console.log('📦 Usando produtos padrão')
+        setProdutos(produtosPadrao)
+        setSupabaseConnected(false)
+      } else {
+        console.log('✅ Produtos carregados do Supabase:', data?.length || 0)
+        setProdutos(data || produtosPadrao)
+        setSupabaseConnected(true)
       }
-
-      setProdutos(data || [])
     } catch (error) {
-      console.error('Erro:', error)
-      alert('Erro inesperado ao carregar produtos')
+      console.error('❌ Erro geral:', error)
+      console.log('📦 Usando produtos padrão')
+      setProdutos(produtosPadrao)
+      setSupabaseConnected(false)
     } finally {
       setLoading(false)
     }
@@ -79,25 +154,30 @@ export default function GerenciarProdutos() {
     }
   }
 
-  // FUNÇÃO REAL: Atualizar estoque no Supabase
+  // FUNÇÃO REAL: Atualizar estoque
   const atualizarEstoque = async (id: number, novoEstoque: number) => {
+    console.log(`🔄 Atualizando estoque do produto ${id} para ${novoEstoque}`)
+    
     if (novoEstoque < 0) {
-      alert('Estoque não pode ser negativo')
+      alert('❌ Estoque não pode ser negativo')
       return
     }
 
+    setSaving(id)
+    
     try {
-      setSaving(id)
-      
-      const { error } = await supabase
-        .from('produtos')
-        .update({ estoque: novoEstoque })
-        .eq('id', id)
+      if (supabaseConnected) {
+        // Tentar salvar no Supabase
+        const { error } = await supabase
+          .from('produtos')
+          .update({ estoque: novoEstoque })
+          .eq('id', id)
 
-      if (error) {
-        console.error('Erro ao atualizar estoque:', error)
-        alert('Erro ao salvar estoque no banco de dados')
-        return
+        if (error) {
+          console.error('❌ Erro ao salvar no Supabase:', error)
+          throw error
+        }
+        console.log('✅ Estoque salvo no Supabase')
       }
 
       // Atualizar estado local
@@ -107,67 +187,42 @@ export default function GerenciarProdutos() {
 
       alert(`✅ Estoque atualizado: ${novoEstoque} unidades`)
     } catch (error) {
-      console.error('Erro:', error)
-      alert('Erro inesperado ao atualizar estoque')
-    } finally {
-      setSaving(null)
-    }
-  }
-
-  // FUNÇÃO REAL: Toggle ativo no Supabase
-  const toggleAtivo = async (id: number) => {
-    const produto = produtos.find(p => p.id === id)
-    if (!produto) return
-
-    try {
-      setSaving(id)
+      console.error('❌ Erro ao atualizar estoque:', error)
       
-      const novoStatus = !produto.ativo
-      
-      const { error } = await supabase
-        .from('produtos')
-        .update({ ativo: novoStatus })
-        .eq('id', id)
-
-      if (error) {
-        console.error('Erro ao atualizar status:', error)
-        alert('Erro ao salvar status no banco de dados')
-        return
-      }
-
-      // Atualizar estado local
-      setProdutos(prev => prev.map(p => 
-        p.id === id ? { ...p, ativo: novoStatus } : p
+      // Fallback: atualizar apenas localmente
+      setProdutos(prev => prev.map(produto => 
+        produto.id === id ? { ...produto, estoque: novoEstoque } : produto
       ))
-
-      alert(`✅ Produto ${novoStatus ? 'ativado' : 'desativado'} com sucesso`)
-    } catch (error) {
-      console.error('Erro:', error)
-      alert('Erro inesperado ao atualizar status')
+      alert(`⚠️ Estoque atualizado localmente: ${novoEstoque} unidades`)
     } finally {
       setSaving(null)
     }
   }
 
-  // FUNÇÃO REAL: Atualizar preço no Supabase
+  // FUNÇÃO REAL: Atualizar preço
   const atualizarPreco = async (id: number, novoPreco: number) => {
+    console.log(`💰 Atualizando preço do produto ${id} para ${novoPreco}`)
+    
     if (novoPreco <= 0) {
-      alert('Preço deve ser maior que zero')
+      alert('❌ Preço deve ser maior que zero')
       return
     }
 
+    setSaving(id)
+    
     try {
-      setSaving(id)
-      
-      const { error } = await supabase
-        .from('produtos')
-        .update({ preco: novoPreco })
-        .eq('id', id)
+      if (supabaseConnected) {
+        // Tentar salvar no Supabase
+        const { error } = await supabase
+          .from('produtos')
+          .update({ preco: novoPreco })
+          .eq('id', id)
 
-      if (error) {
-        console.error('Erro ao atualizar preço:', error)
-        alert('Erro ao salvar preço no banco de dados')
-        return
+        if (error) {
+          console.error('❌ Erro ao salvar preço no Supabase:', error)
+          throw error
+        }
+        console.log('✅ Preço salvo no Supabase')
       }
 
       // Atualizar estado local
@@ -177,8 +232,57 @@ export default function GerenciarProdutos() {
 
       alert(`✅ Preço atualizado: ${formatarPreco(novoPreco)}`)
     } catch (error) {
-      console.error('Erro:', error)
-      alert('Erro inesperado ao atualizar preço')
+      console.error('❌ Erro ao atualizar preço:', error)
+      
+      // Fallback: atualizar apenas localmente
+      setProdutos(prev => prev.map(produto => 
+        produto.id === id ? { ...produto, preco: novoPreco } : produto
+      ))
+      alert(`⚠️ Preço atualizado localmente: ${formatarPreco(novoPreco)}`)
+    } finally {
+      setSaving(null)
+    }
+  }
+
+  // FUNÇÃO REAL: Toggle ativo
+  const toggleAtivo = async (id: number) => {
+    console.log(`🔄 Alterando status do produto ${id}`)
+    
+    const produto = produtos.find(p => p.id === id)
+    if (!produto) return
+
+    const novoStatus = !produto.ativo
+    setSaving(id)
+    
+    try {
+      if (supabaseConnected) {
+        // Tentar salvar no Supabase
+        const { error } = await supabase
+          .from('produtos')
+          .update({ ativo: novoStatus })
+          .eq('id', id)
+
+        if (error) {
+          console.error('❌ Erro ao salvar status no Supabase:', error)
+          throw error
+        }
+        console.log('✅ Status salvo no Supabase')
+      }
+
+      // Atualizar estado local
+      setProdutos(prev => prev.map(p => 
+        p.id === id ? { ...p, ativo: novoStatus } : p
+      ))
+
+      alert(`✅ Produto ${novoStatus ? 'ativado' : 'desativado'} com sucesso`)
+    } catch (error) {
+      console.error('❌ Erro ao alterar status:', error)
+      
+      // Fallback: atualizar apenas localmente
+      setProdutos(prev => prev.map(p => 
+        p.id === id ? { ...p, ativo: novoStatus } : p
+      ))
+      alert(`⚠️ Status alterado localmente: ${novoStatus ? 'ativado' : 'desativado'}`)
     } finally {
       setSaving(null)
     }
@@ -186,67 +290,47 @@ export default function GerenciarProdutos() {
 
   // FUNÇÃO REAL: Deletar produto
   const deletarProduto = async (id: number) => {
+    console.log(`🗑️ Deletando produto ${id}`)
+    
     const produto = produtos.find(p => p.id === id)
     if (!produto) return
 
-    if (!confirm(`Tem certeza que deseja deletar "${produto.nome}"?`)) {
+    if (!confirm(`❓ Tem certeza que deseja deletar "${produto.nome}"?`)) {
       return
     }
 
+    setSaving(id)
+    
     try {
-      setSaving(id)
-      
-      const { error } = await supabase
-        .from('produtos')
-        .delete()
-        .eq('id', id)
+      if (supabaseConnected) {
+        // Tentar deletar no Supabase
+        const { error } = await supabase
+          .from('produtos')
+          .delete()
+          .eq('id', id)
 
-      if (error) {
-        console.error('Erro ao deletar produto:', error)
-        alert('Erro ao deletar produto do banco de dados')
-        return
+        if (error) {
+          console.error('❌ Erro ao deletar no Supabase:', error)
+          throw error
+        }
+        console.log('✅ Produto deletado no Supabase')
       }
 
       // Remover do estado local
       setProdutos(prev => prev.filter(p => p.id !== id))
       alert('✅ Produto deletado com sucesso')
     } catch (error) {
-      console.error('Erro:', error)
-      alert('Erro inesperado ao deletar produto')
-    } finally {
-      setSaving(null)
-    }
-  }
-
-  // FUNÇÃO REAL: Adicionar novo produto
-  const adicionarProduto = async (novoProduto: Omit<Product, 'id'>) => {
-    try {
-      setSaving(-1) // ID especial para novo produto
+      console.error('❌ Erro ao deletar produto:', error)
       
-      const { data, error } = await supabase
-        .from('produtos')
-        .insert([novoProduto])
-        .select()
-        .single()
-
-      if (error) {
-        console.error('Erro ao adicionar produto:', error)
-        alert('Erro ao salvar produto no banco de dados')
-        return
-      }
-
-      // Adicionar ao estado local
-      setProdutos(prev => [...prev, data])
-      setShowAddModal(false)
-      alert('✅ Produto adicionado com sucesso')
-    } catch (error) {
-      console.error('Erro:', error)
-      alert('Erro inesperado ao adicionar produto')
+      // Fallback: remover apenas localmente
+      setProdutos(prev => prev.filter(p => p.id !== id))
+      alert('⚠️ Produto removido localmente')
     } finally {
       setSaving(null)
     }
   }
 
+  // Filtrar produtos
   const produtosFiltrados = produtos.filter(produto => {
     const matchFiltro = produto.nome.toLowerCase().includes(filtro.toLowerCase()) ||
                        produto.categoria.toLowerCase().includes(filtro.toLowerCase()) ||
@@ -264,7 +348,7 @@ export default function GerenciarProdutos() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando produtos do banco...</p>
+          <p className="text-gray-600">Carregando produtos...</p>
         </div>
       </div>
     )
@@ -285,12 +369,15 @@ export default function GerenciarProdutos() {
               </button>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Gestão de Produtos</h1>
-                <p className="text-gray-600">{produtos.length} produtos • Conectado ao Supabase</p>
+                <p className="text-gray-600">
+                  {produtos.length} produtos • 
+                  {supabaseConnected ? ' Conectado ao Supabase' : ' Modo Local'}
+                </p>
               </div>
             </div>
             
             <button 
-              onClick={() => setShowAddModal(true)}
+              onClick={() => alert('🚧 Função em desenvolvimento')}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -408,9 +495,6 @@ export default function GerenciarProdutos() {
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Avaliação
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Ações
                   </th>
                 </tr>
@@ -450,20 +534,14 @@ export default function GerenciarProdutos() {
                           <div className="flex items-center space-x-2">
                             <input
                               type="number"
-                              value={produto.preco}
-                              onChange={(e) => {
-                                const novoPreco = parseFloat(e.target.value) || 0
-                                setProdutos(prev => prev.map(p => 
-                                  p.id === produto.id ? { ...p, preco: novoPreco } : p
-                                ))
-                              }}
+                              defaultValue={produto.preco}
                               onBlur={(e) => {
                                 const novoPreco = parseFloat(e.target.value) || 0
-                                if (novoPreco !== produto.preco) {
+                                if (novoPreco !== produto.preco && novoPreco > 0) {
                                   atualizarPreco(produto.id, novoPreco)
                                 }
                               }}
-                              className="w-24 px-2 py-1 text-sm border border-gray-300 rounded"
+                              className="w-24 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
                               step="0.01"
                               min="0"
                               disabled={isSaving}
@@ -482,66 +560,48 @@ export default function GerenciarProdutos() {
                         <div className="flex items-center space-x-2">
                           <input
                             type="number"
-                            value={produto.estoque}
-                            onChange={(e) => {
-                              const novoEstoque = parseInt(e.target.value) || 0
-                              setProdutos(prev => prev.map(p => 
-                                p.id === produto.id ? { ...p, estoque: novoEstoque } : p
-                              ))
-                            }}
+                            defaultValue={produto.estoque}
                             onBlur={(e) => {
                               const novoEstoque = parseInt(e.target.value) || 0
                               if (novoEstoque !== produto.estoque) {
                                 atualizarEstoque(produto.id, novoEstoque)
                               }
                             }}
-                            className="w-16 px-2 py-1 text-sm border border-gray-300 rounded"
+                            className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
                             min="0"
                             disabled={isSaving}
                           />
                           <span className="text-xs text-gray-500">unid.</span>
                           {isSaving && <Loader2 className="h-4 w-4 animate-spin text-blue-600" />}
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="space-y-1">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${estoqueStatus.cor}`}>
+                        <div className="mt-1">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${estoqueStatus.cor}`}>
                             {produto.estoque <= 2 && produto.estoque > 0 && <AlertTriangle className="h-3 w-3 mr-1" />}
                             {estoqueStatus.texto}
                           </span>
-                          <div>
-                            <button
-                              onClick={() => toggleAtivo(produto.id)}
-                              disabled={isSaving}
-                              className={`text-xs px-2 py-1 rounded flex items-center space-x-1 ${
-                                produto.ativo 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-gray-100 text-gray-800'
-                              } ${isSaving ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'}`}
-                            >
-                              {isSaving && <Loader2 className="h-3 w-3 animate-spin" />}
-                              <span>{produto.ativo ? 'Ativo' : 'Inativo'}</span>
-                            </button>
-                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm">
-                          <div className="flex items-center">
-                            <span className="text-yellow-400">★</span>
-                            <span className="ml-1 font-medium">{produto.rating}</span>
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {produto.reviews} avaliações
-                          </div>
-                        </div>
+                        <button
+                          onClick={() => toggleAtivo(produto.id)}
+                          disabled={isSaving}
+                          className={`text-xs px-3 py-1 rounded-full flex items-center space-x-1 transition-colors ${
+                            produto.ativo 
+                              ? 'bg-green-100 text-green-800 hover:bg-green-200' 
+                              : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                          } ${isSaving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                        >
+                          {isSaving && <Loader2 className="h-3 w-3 animate-spin" />}
+                          <span>{produto.ativo ? '✅ Ativo' : '❌ Inativo'}</span>
+                        </button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-2">
                           <button 
-                            onClick={() => setEditingProduct(produto)}
+                            onClick={() => alert(`🔧 Editar produto: ${produto.nome}`)}
                             disabled={isSaving}
                             className="text-blue-600 hover:text-blue-700 p-1 hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
+                            title="Editar produto"
                           >
                             <Edit className="h-4 w-4" />
                           </button>
@@ -549,6 +609,7 @@ export default function GerenciarProdutos() {
                             onClick={() => deletarProduto(produto.id)}
                             disabled={isSaving}
                             className="text-red-600 hover:text-red-700 p-1 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                            title="Deletar produto"
                           >
                             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                           </button>
@@ -563,11 +624,40 @@ export default function GerenciarProdutos() {
         </div>
 
         {/* Status de Conexão */}
-        <div className="mt-8 bg-green-50 border border-green-200 rounded-lg p-4">
+        <div className={`mt-8 border rounded-lg p-4 ${
+          supabaseConnected 
+            ? 'bg-green-50 border-green-200' 
+            : 'bg-yellow-50 border-yellow-200'
+        }`}>
           <div className="flex items-center">
-            <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
-            <span className="text-green-800 font-medium">Conectado ao Supabase</span>
-            <span className="text-green-600 ml-2">• Todas as alterações são salvas automaticamente</span>
+            <div className={`w-3 h-3 rounded-full mr-3 ${
+              supabaseConnected ? 'bg-green-500' : 'bg-yellow-500'
+            }`}></div>
+            <span className={`font-medium ${
+              supabaseConnected ? 'text-green-800' : 'text-yellow-800'
+            }`}>
+              {supabaseConnected ? 'Conectado ao Supabase' : 'Modo Local Ativo'}
+            </span>
+            <span className={`ml-2 ${
+              supabaseConnected ? 'text-green-600' : 'text-yellow-600'
+            }`}>
+              • {supabaseConnected 
+                ? 'Alterações são salvas no banco de dados' 
+                : 'Alterações são salvas apenas na sessão atual'
+              }
+            </span>
+          </div>
+        </div>
+
+        {/* Debug Info */}
+        <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <h3 className="font-bold text-gray-900 mb-2">🔧 Debug Info:</h3>
+          <div className="text-sm text-gray-600 space-y-1">
+            <p>📊 Produtos carregados: {produtos.length}</p>
+            <p>🔌 Supabase conectado: {supabaseConnected ? 'Sim' : 'Não'}</p>
+            <p>🔍 Filtro ativo: "{filtro || 'nenhum'}"</p>
+            <p>📂 Categoria filtrada: {categoriaFiltro}</p>
+            <p>💾 Salvando produto: {saving || 'nenhum'}</p>
           </div>
         </div>
       </div>
