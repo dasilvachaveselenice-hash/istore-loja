@@ -1,113 +1,32 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Package, Eye, Truck, CheckCircle, Clock, X, Search, Loader2 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
-
-interface Pedido {
-  id: number
-  cliente: string
-  email: string
-  total: number
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
-  data: string
-  itens: number
-  user_id?: string
-  cliente_nome?: string
-  cliente_email?: string
-  created_at?: string
-}
+import { Package, Eye, Truck, CheckCircle, Clock, X, Search, Loader2, ArrowLeft, Save, RefreshCw } from 'lucide-react'
+import { getPedidos, salvarPedidos, atualizarPedido, resetarDados, type Pedido } from '@/lib/storage'
 
 export default function PedidosPage() {
   const [pedidos, setPedidos] = useState<Pedido[]>([])
   const [loading, setLoading] = useState(true)
+  
   const [saving, setSaving] = useState<number | null>(null)
   const [filtro, setFiltro] = useState('')
   const [statusFiltro, setStatusFiltro] = useState('todos')
 
   useEffect(() => {
-    loadPedidos()
+    carregarPedidos()
   }, [])
 
-  const loadPedidos = async () => {
+  const carregarPedidos = () => {
+    setLoading(true)
     try {
-      setLoading(true)
-      
-      // Tentar carregar do Supabase primeiro
-      const { data, error } = await supabase
-        .from('pedidos')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (error) {
-        console.error('Erro ao carregar pedidos do Supabase:', error)
-        // Fallback para dados simulados
-        loadPedidosSimulados()
-        return
-      }
-
-      // Converter dados do Supabase para formato esperado
-      const pedidosFormatados = data?.map(pedido => ({
-        id: pedido.id,
-        cliente: pedido.cliente_nome || 'Cliente',
-        email: pedido.cliente_email || 'email@exemplo.com',
-        total: pedido.total || 0,
-        status: pedido.status || 'pending',
-        data: pedido.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
-        itens: 1, // Simplificado
-        user_id: pedido.user_id
-      })) || []
-
-      setPedidos(pedidosFormatados)
+      const pedidosCarregados = getPedidos()
+      setPedidos(pedidosCarregados)
+      console.log('📦 Pedidos carregados:', pedidosCarregados.length)
     } catch (error) {
       console.error('Erro ao carregar pedidos:', error)
-      loadPedidosSimulados()
     } finally {
       setLoading(false)
     }
-  }
-
-  const loadPedidosSimulados = () => {
-    // Dados simulados caso Supabase não funcione
-    const pedidosSimulados = [
-      {
-        id: 1001,
-        cliente: 'João Silva',
-        email: 'joao@email.com',
-        total: 7999.00,
-        status: 'pending' as const,
-        data: '2024-01-15',
-        itens: 1
-      },
-      {
-        id: 1002,
-        cliente: 'Maria Santos',
-        email: 'maria@email.com',
-        total: 4299.00,
-        status: 'processing' as const,
-        data: '2024-01-14',
-        itens: 1
-      },
-      {
-        id: 1003,
-        cliente: 'Pedro Costa',
-        email: 'pedro@email.com',
-        total: 13298.00,
-        status: 'shipped' as const,
-        data: '2024-01-13',
-        itens: 2
-      },
-      {
-        id: 1004,
-        cliente: 'Ana Oliveira',
-        email: 'ana@email.com',
-        total: 3299.00,
-        status: 'delivered' as const,
-        data: '2024-01-12',
-        itens: 1
-      }
-    ]
-    setPedidos(pedidosSimulados)
   }
 
   const formatarPreco = (preco: number): string => {
@@ -154,40 +73,43 @@ export default function PedidosPage() {
     }
   }
 
-  // FUNÇÃO REAL: Atualizar status no Supabase
+  // Atualizar status do pedido
   const atualizarStatus = async (id: number, novoStatus: string) => {
+    setSaving(id)
+    console.log('🔄 Atualizando status do pedido:', id, novoStatus)
+    
     try {
-      setSaving(id)
+      const sucesso = atualizarPedido(id, { status: novoStatus as any })
       
-      // Tentar atualizar no Supabase
-      const { error } = await supabase
-        .from('pedidos')
-        .update({ status: novoStatus })
-        .eq('id', id)
-
-      if (error) {
-        console.error('Erro ao atualizar status no Supabase:', error)
-        // Atualizar apenas localmente se Supabase falhar
+      if (sucesso) {
+        // Atualizar estado local
         setPedidos(prev => prev.map(pedido => 
           pedido.id === id ? { ...pedido, status: novoStatus as any } : pedido
         ))
-        alert(`✅ Status atualizado localmente: ${getStatusText(novoStatus)}`)
+        alert(`✅ Status atualizado para "${getStatusText(novoStatus)}" e SALVO permanentemente!`)
       } else {
-        // Atualizar estado local após sucesso no Supabase
-        setPedidos(prev => prev.map(pedido => 
-          pedido.id === id ? { ...pedido, status: novoStatus as any } : pedido
-        ))
-        alert(`✅ Status salvo no banco: ${getStatusText(novoStatus)}`)
+        alert('❌ Erro ao salvar status')
       }
     } catch (error) {
       console.error('Erro ao atualizar status:', error)
-      // Fallback: atualizar apenas localmente
-      setPedidos(prev => prev.map(pedido => 
-        pedido.id === id ? { ...pedido, status: novoStatus as any } : pedido
-      ))
-      alert(`⚠️ Status atualizado localmente: ${getStatusText(novoStatus)}`)
+      alert('❌ Erro ao atualizar status')
     } finally {
       setSaving(null)
+    }
+  }
+
+  const resetarTodosDados = () => {
+    if (!confirm('⚠️ ATENÇÃO!\n\nIsto vai RESETAR todos os pedidos para os valores originais.\n\nTodas as alterações serão PERDIDAS!\n\nTem certeza?')) {
+      return
+    }
+
+    try {
+      resetarDados()
+      carregarPedidos()
+      alert('🔄 Dados resetados com sucesso!')
+    } catch (error) {
+      console.error('Erro ao resetar dados:', error)
+      alert('❌ Erro ao resetar dados')
     }
   }
 
@@ -218,22 +140,56 @@ export default function PedidosPage() {
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Gerenciar Pedidos</h1>
-              <p className="text-gray-600">Acompanhe e gerencie todos os pedidos • Conectado ao Supabase</p>
+            <div className="flex items-center">
+              <button 
+                onClick={() => window.location.href = '/admin'}
+                className="mr-4 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Gerenciar Pedidos</h1>
+                <p className="text-gray-600">{pedidos.length} pedidos • Sistema de Persistência ATIVO</p>
+              </div>
             </div>
             
-            <button 
-              onClick={() => window.location.href = '/admin'}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              Voltar ao Dashboard
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={carregarPedidos}
+                className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <RefreshCw className="h-4 w-4 mr-1" />
+                Recarregar
+              </button>
+              
+              <button
+                onClick={resetarTodosDados}
+                className="flex items-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <RefreshCw className="h-4 w-4 mr-1" />
+                Reset
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Alerta de Sistema Funcionando */}
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-8">
+          <div className="flex items-center">
+            <Save className="h-5 w-5 text-green-600 mr-2" />
+            <div>
+              <span className="text-green-800 font-medium">
+                ✅ SISTEMA DE PERSISTÊNCIA ATIVO
+              </span>
+              <p className="text-green-700 text-sm mt-1">
+                Todas as alterações de status são salvas automaticamente e persistem entre sessões!
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Filtros */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -266,7 +222,7 @@ export default function PedidosPage() {
         {/* Lista de Pedidos */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold">Pedidos ({pedidosFiltrados.length})</h2>
+            <h2 className="text-lg font-semibold">Pedidos ({pedidosFiltrados.length}) - Alterações Salvas Automaticamente</h2>
           </div>
           
           <div className="overflow-x-auto">
@@ -333,7 +289,10 @@ export default function PedidosPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-2">
-                          <button className="text-blue-600 hover:text-blue-700">
+                          <button 
+                            className="text-blue-600 hover:text-blue-700"
+                            onClick={() => alert(`👁️ Visualizar Pedido #${pedido.id}\n\n🚧 Função em desenvolvimento`)}
+                          >
                             <Eye className="h-4 w-4" />
                           </button>
                           
@@ -362,13 +321,28 @@ export default function PedidosPage() {
           </div>
         </div>
 
-        {/* Status de Conexão */}
-        <div className="mt-8 bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-green-500 rounded-full mr-3">
+        {/* Instruções */}
+        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <h3 className="font-bold text-blue-900 mb-4">📋 Sistema de Persistência ATIVO:</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-blue-800 text-sm">
+            <div>
+              <h4 className="font-semibold mb-2">💾 Como Funciona:</h4>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Alterações de status são salvas automaticamente</li>
+                <li>Dados persistem entre sessões</li>
+                <li>Backup automático criado</li>
+                <li>Funciona offline</li>
+              </ul>
             </div>
-            <span className="text-green-800 font-medium">Conectado ao Supabase</span>
-            <span className="text-green-600 ml-2">• Alterações de status são salvas automaticamente</span>
+            <div>
+              <h4 className="font-semibold mb-2">🔧 Operações Disponíveis:</h4>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Alterar status do pedido (salva automaticamente)</li>
+                <li>Filtrar por cliente, email ou ID</li>
+                <li>Filtrar por status</li>
+                <li>Visualizar detalhes (em desenvolvimento)</li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
