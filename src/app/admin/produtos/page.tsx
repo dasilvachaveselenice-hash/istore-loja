@@ -1,77 +1,30 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Trash2, Edit, Package, AlertTriangle, ArrowLeft } from 'lucide-react'
-
-interface Product {
-  id: number
-  nome: string
-  categoria: string
-  preco: number
-  estoque: number
-  ativo: boolean
-  imagem: string
-}
+import { Trash2, Edit, Package, AlertTriangle, ArrowLeft, Save, RefreshCw } from 'lucide-react'
+import { getProdutos, salvarProdutos, atualizarProduto, resetarDados, type Product } from '@/lib/storage'
 
 export default function GerenciarProdutos() {
   const [produtos, setProdutos] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState<number | null>(null)
 
   useEffect(() => {
-    // Carregar produtos
-    const produtosIniciais = [
-      { 
-        id: 1, 
-        nome: 'iPhone 16 Pro Max 256GB', 
-        categoria: 'iPhone',
-        preco: 6999, 
-        estoque: 5, 
-        ativo: true,
-        imagem: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=100&h=100&fit=crop'
-      },
-      { 
-        id: 2, 
-        nome: 'iPad Pro 12.9" M2', 
-        categoria: 'iPad',
-        preco: 4999, 
-        estoque: 3, 
-        ativo: true,
-        imagem: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=100&h=100&fit=crop'
-      },
-      { 
-        id: 3, 
-        nome: 'MacBook Air M2', 
-        categoria: 'MacBook',
-        preco: 7999, 
-        estoque: 2, 
-        ativo: false,
-        imagem: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=100&h=100&fit=crop'
-      },
-      { 
-        id: 4, 
-        nome: 'Apple Watch Series 9', 
-        categoria: 'Apple Watch',
-        preco: 2299, 
-        estoque: 8, 
-        ativo: true,
-        imagem: 'https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?w=100&h=100&fit=crop'
-      },
-      { 
-        id: 5, 
-        nome: 'AirPods Pro 2ª geração', 
-        categoria: 'AirPods',
-        preco: 1399, 
-        estoque: 12, 
-        ativo: true,
-        imagem: 'https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=100&h=100&fit=crop'
-      }
-    ]
-    
-    setTimeout(() => {
-      setProdutos(produtosIniciais)
-      setLoading(false)
-    }, 500)
+    carregarProdutos()
   }, [])
+
+  const carregarProdutos = () => {
+    setLoading(true)
+    try {
+      const produtosCarregados = getProdutos()
+      setProdutos(produtosCarregados)
+      console.log('📦 Produtos carregados:', produtosCarregados.length)
+    } catch (error) {
+      console.error('Erro ao carregar produtos:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const formatarPreco = (preco: number): string => {
     return new Intl.NumberFormat('pt-BR', {
@@ -80,38 +33,131 @@ export default function GerenciarProdutos() {
     }).format(preco)
   }
 
-  const atualizarPreco = (id: number, novoPreco: number) => {
+  const atualizarPreco = async (id: number, novoPreco: number) => {
+    if (novoPreco <= 0) {
+      alert('❌ Preço deve ser maior que zero')
+      return
+    }
+
+    setSaving(id)
     console.log('💰 Atualizando preço:', id, novoPreco)
-    setProdutos(prev => prev.map(p => 
-      p.id === id ? { ...p, preco: novoPreco } : p
-    ))
-    alert(`✅ Preço atualizado para ${formatarPreco(novoPreco)}`)
+    
+    try {
+      const sucesso = atualizarProduto(id, { preco: novoPreco })
+      
+      if (sucesso) {
+        // Atualizar estado local
+        setProdutos(prev => prev.map(p => 
+          p.id === id ? { ...p, preco: novoPreco } : p
+        ))
+        alert(`✅ Preço atualizado para ${formatarPreco(novoPreco)} e SALVO permanentemente!`)
+      } else {
+        alert('❌ Erro ao salvar preço')
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar preço:', error)
+      alert('❌ Erro ao atualizar preço')
+    } finally {
+      setSaving(null)
+    }
   }
 
-  const atualizarEstoque = (id: number, novoEstoque: number) => {
+  const atualizarEstoque = async (id: number, novoEstoque: number) => {
+    if (novoEstoque < 0) {
+      alert('❌ Estoque não pode ser negativo')
+      return
+    }
+
+    setSaving(id)
     console.log('📦 Atualizando estoque:', id, novoEstoque)
-    setProdutos(prev => prev.map(p => 
-      p.id === id ? { ...p, estoque: novoEstoque } : p
-    ))
-    alert(`✅ Estoque atualizado para ${novoEstoque} unidades`)
+    
+    try {
+      const sucesso = atualizarProduto(id, { estoque: novoEstoque })
+      
+      if (sucesso) {
+        // Atualizar estado local
+        setProdutos(prev => prev.map(p => 
+          p.id === id ? { ...p, estoque: novoEstoque } : p
+        ))
+        alert(`✅ Estoque atualizado para ${novoEstoque} unidades e SALVO permanentemente!`)
+      } else {
+        alert('❌ Erro ao salvar estoque')
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar estoque:', error)
+      alert('❌ Erro ao atualizar estoque')
+    } finally {
+      setSaving(null)
+    }
   }
 
-  const toggleAtivo = (id: number) => {
-    console.log('🔄 Alterando status:', id)
-    setProdutos(prev => prev.map(p => 
-      p.id === id ? { ...p, ativo: !p.ativo } : p
-    ))
+  const toggleAtivo = async (id: number) => {
+    setSaving(id)
     const produto = produtos.find(p => p.id === id)
-    alert(`✅ Produto ${produto?.ativo ? 'desativado' : 'ativado'}!`)
+    const novoStatus = !produto?.ativo
+    
+    console.log('🔄 Alterando status:', id, novoStatus)
+    
+    try {
+      const sucesso = atualizarProduto(id, { ativo: novoStatus })
+      
+      if (sucesso) {
+        // Atualizar estado local
+        setProdutos(prev => prev.map(p => 
+          p.id === id ? { ...p, ativo: novoStatus } : p
+        ))
+        alert(`✅ Produto ${novoStatus ? 'ATIVADO' : 'DESATIVADO'} e SALVO permanentemente!`)
+      } else {
+        alert('❌ Erro ao salvar status')
+      }
+    } catch (error) {
+      console.error('Erro ao alterar status:', error)
+      alert('❌ Erro ao alterar status')
+    } finally {
+      setSaving(null)
+    }
   }
 
-  const deletarProduto = (id: number) => {
+  const deletarProduto = async (id: number) => {
     const produto = produtos.find(p => p.id === id)
+    
+    if (!confirm(`❓ Tem certeza que deseja deletar "${produto?.nome}"?\n\nEsta ação é PERMANENTE!`)) {
+      return
+    }
+
+    setSaving(id)
     console.log('🗑️ Deletando produto:', id, produto?.nome)
     
-    if (confirm(`❓ Tem certeza que deseja deletar "${produto?.nome}"?`)) {
-      setProdutos(prev => prev.filter(p => p.id !== id))
-      alert('✅ Produto deletado com sucesso!')
+    try {
+      const produtosAtualizados = produtos.filter(p => p.id !== id)
+      const sucesso = salvarProdutos(produtosAtualizados)
+      
+      if (sucesso) {
+        setProdutos(produtosAtualizados)
+        alert('✅ Produto DELETADO permanentemente!')
+      } else {
+        alert('❌ Erro ao deletar produto')
+      }
+    } catch (error) {
+      console.error('Erro ao deletar produto:', error)
+      alert('❌ Erro ao deletar produto')
+    } finally {
+      setSaving(null)
+    }
+  }
+
+  const resetarTodosDados = () => {
+    if (!confirm('⚠️ ATENÇÃO!\n\nIsto vai RESETAR todos os produtos para os valores originais.\n\nTodas as alterações serão PERDIDAS!\n\nTem certeza?')) {
+      return
+    }
+
+    try {
+      resetarDados()
+      carregarProdutos()
+      alert('🔄 Dados resetados com sucesso!')
+    } catch (error) {
+      console.error('Erro ao resetar dados:', error)
+      alert('❌ Erro ao resetar dados')
     }
   }
 
@@ -153,14 +199,47 @@ export default function GerenciarProdutos() {
               </button>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">🛠️ Gestão de Produtos</h1>
-                <p className="text-gray-600">{produtos.length} produtos • Versão Funcional</p>
+                <p className="text-gray-600">{produtos.length} produtos • Sistema de Persistência ATIVO</p>
               </div>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={carregarProdutos}
+                className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <RefreshCw className="h-4 w-4 mr-1" />
+                Recarregar
+              </button>
+              
+              <button
+                onClick={resetarTodosDados}
+                className="flex items-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <RefreshCw className="h-4 w-4 mr-1" />
+                Reset
+              </button>
             </div>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Alerta de Sistema Funcionando */}
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-8">
+          <div className="flex items-center">
+            <Save className="h-5 w-5 text-green-600 mr-2" />
+            <div>
+              <span className="text-green-800 font-medium">
+                ✅ SISTEMA DE PERSISTÊNCIA ATIVO
+              </span>
+              <p className="text-green-700 text-sm mt-1">
+                Todas as alterações são salvas automaticamente no localStorage e persistem entre sessões!
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Estatísticas */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-lg p-6">
@@ -204,20 +283,10 @@ export default function GerenciarProdutos() {
           </div>
         </div>
 
-        {/* Alerta de Sucesso */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-8">
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
-            <span className="text-green-800 font-medium">
-              ✅ VERSÃO FUNCIONAL - Todas as operações estão funcionando!
-            </span>
-          </div>
-        </div>
-
         {/* Tabela de Produtos */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold">Lista de Produtos</h2>
+            <h2 className="text-lg font-semibold">Lista de Produtos - Alterações Salvas Automaticamente</h2>
           </div>
           
           <div className="overflow-x-auto">
@@ -234,6 +303,7 @@ export default function GerenciarProdutos() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {produtos.map((produto) => {
                   const estoqueStatus = getEstoqueStatus(produto.estoque)
+                  const isSaving = saving === produto.id
                   
                   return (
                     <tr key={produto.id} className="hover:bg-gray-50">
@@ -263,6 +333,7 @@ export default function GerenciarProdutos() {
                           className="w-28 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                           step="0.01"
                           min="0"
+                          disabled={isSaving}
                         />
                         <div className="text-xs text-gray-500 mt-1">
                           Atual: {formatarPreco(produto.preco)}
@@ -280,6 +351,7 @@ export default function GerenciarProdutos() {
                           }}
                           className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                           min="0"
+                          disabled={isSaving}
                         />
                         <div className="mt-1">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${estoqueStatus.cor}`}>
@@ -290,13 +362,14 @@ export default function GerenciarProdutos() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <button
                           onClick={() => toggleAtivo(produto.id)}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          disabled={isSaving}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
                             produto.ativo 
                               ? 'bg-green-100 text-green-800 hover:bg-green-200' 
                               : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
                           }`}
                         >
-                          {produto.ativo ? '✅ Ativo' : '❌ Inativo'}
+                          {isSaving ? '⏳' : produto.ativo ? '✅ Ativo' : '❌ Inativo'}
                         </button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -305,6 +378,7 @@ export default function GerenciarProdutos() {
                             onClick={() => alert(`🔧 Editar: ${produto.nome}\n\n🚧 Função em desenvolvimento`)}
                             className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition-colors"
                             title="Editar produto"
+                            disabled={isSaving}
                           >
                             <Edit className="h-4 w-4" />
                           </button>
@@ -312,6 +386,7 @@ export default function GerenciarProdutos() {
                             onClick={() => deletarProduto(produto.id)}
                             className="text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors"
                             title="Deletar produto"
+                            disabled={isSaving}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -327,42 +402,25 @@ export default function GerenciarProdutos() {
 
         {/* Instruções de Uso */}
         <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="font-bold text-blue-900 mb-4">📋 Como Usar:</h3>
+          <h3 className="font-bold text-blue-900 mb-4">📋 Sistema de Persistência ATIVO:</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-blue-800 text-sm">
             <div>
-              <h4 className="font-semibold mb-2">💰 Alterar Preço:</h4>
-              <ol className="list-decimal list-inside space-y-1">
-                <li>Clique no campo de preço</li>
-                <li>Digite o novo valor</li>
-                <li>Clique fora do campo (ou Tab)</li>
-                <li>Confirme no alerta que aparece</li>
-              </ol>
+              <h4 className="font-semibold mb-2">💾 Como Funciona:</h4>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Alterações são salvas automaticamente</li>
+                <li>Dados persistem entre sessões</li>
+                <li>Backup automático criado</li>
+                <li>Funciona offline</li>
+              </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-2">📦 Alterar Estoque:</h4>
-              <ol className="list-decimal list-inside space-y-1">
-                <li>Clique no campo de estoque</li>
-                <li>Digite a nova quantidade</li>
-                <li>Clique fora do campo (ou Tab)</li>
-                <li>Confirme no alerta que aparece</li>
-              </ol>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">🔄 Ativar/Desativar:</h4>
-              <ol className="list-decimal list-inside space-y-1">
-                <li>Clique no botão de status</li>
-                <li>O status alterna automaticamente</li>
-                <li>Confirme no alerta que aparece</li>
-              </ol>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">🗑️ Deletar Produto:</h4>
-              <ol className="list-decimal list-inside space-y-1">
-                <li>Clique no ícone de lixeira</li>
-                <li>Confirme na caixa de diálogo</li>
-                <li>O produto será removido</li>
-                <li>Confirme no alerta de sucesso</li>
-              </ol>
+              <h4 className="font-semibold mb-2">🔧 Operações Disponíveis:</h4>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Alterar preço (clique fora para salvar)</li>
+                <li>Alterar estoque (clique fora para salvar)</li>
+                <li>Ativar/Desativar produto</li>
+                <li>Deletar produto (permanente)</li>
+              </ul>
             </div>
           </div>
         </div>
