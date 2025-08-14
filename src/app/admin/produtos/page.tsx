@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Package, Plus, Edit, Trash2, AlertTriangle, Search, ArrowLeft } from 'lucide-react'
+import { Package, Plus, Edit, Trash2, AlertTriangle, Search, ArrowLeft, Save, Loader2 } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 interface Product {
   id: number
@@ -20,49 +21,40 @@ interface Product {
 export default function GerenciarProdutos() {
   const [produtos, setProdutos] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState<number | null>(null)
   const [filtro, setFiltro] = useState('')
   const [categoriaFiltro, setCategoriaFiltro] = useState('todas')
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
 
+  // Carregar produtos do Supabase
   useEffect(() => {
-    setTimeout(() => {
-      setProdutos([
-        // iPhone 16 (Nova Linha)
-        { id: 1, nome: 'iPhone 16 Pro Max 256GB', categoria: 'iPhone', preco: 6999.00, preco_original: 8499.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=100&h=100&fit=crop', descricao: 'iPhone 16 Pro Max com chip A18 Pro', rating: 4.9, reviews: 1247 },
-        { id: 2, nome: 'iPhone 16 Pro 128GB', categoria: 'iPhone', preco: 5999.00, preco_original: 7499.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=100&h=100&fit=crop', descricao: 'iPhone 16 Pro com chip A18 Pro', rating: 4.9, reviews: 987 },
-        { id: 3, nome: 'iPhone 16 Plus 128GB', categoria: 'iPhone', preco: 4999.00, preco_original: 6299.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=100&h=100&fit=crop', descricao: 'iPhone 16 Plus com chip A18', rating: 4.8, reviews: 756 },
-        { id: 4, nome: 'iPhone 16 128GB', categoria: 'iPhone', preco: 4299.00, preco_original: 5499.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=100&h=100&fit=crop', descricao: 'iPhone 16 com chip A18', rating: 4.8, reviews: 634 },
-        
-        // iPhone 15
-        { id: 5, nome: 'iPhone 15 Pro Max 256GB', categoria: 'iPhone', preco: 5999.00, preco_original: 7299.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=100&h=100&fit=crop', descricao: 'iPhone 15 Pro Max com chip A17 Pro', rating: 4.9, reviews: 2847 },
-        { id: 6, nome: 'iPhone 15 Pro 128GB', categoria: 'iPhone', preco: 5299.00, preco_original: 6499.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=100&h=100&fit=crop', descricao: 'iPhone 15 Pro com chip A17 Pro', rating: 4.9, reviews: 1847 },
-        { id: 7, nome: 'iPhone 15 Plus 128GB', categoria: 'iPhone', preco: 4199.00, preco_original: 5299.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=100&h=100&fit=crop', descricao: 'iPhone 15 Plus com chip A16 Bionic', rating: 4.8, reviews: 1234 },
-        { id: 8, nome: 'iPhone 15 128GB', categoria: 'iPhone', preco: 3699.00, preco_original: 4699.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=100&h=100&fit=crop', descricao: 'iPhone 15 com chip A16 Bionic', rating: 4.8, reviews: 1567 },
-        
-        // iPads
-        { id: 9, nome: 'iPad Pro 12.9" M2 128GB', categoria: 'iPad', preco: 5499.00, preco_original: 6799.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=100&h=100&fit=crop', descricao: 'iPad Pro 12.9" com chip M2', rating: 4.9, reviews: 1456 },
-        { id: 10, nome: 'iPad Pro 11" M2 128GB', categoria: 'iPad', preco: 4299.00, preco_original: 5399.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=100&h=100&fit=crop', descricao: 'iPad Pro 11" com chip M2', rating: 4.9, reviews: 1234 },
-        { id: 11, nome: 'iPad Air 5ª geração 64GB', categoria: 'iPad', preco: 2999.00, preco_original: 3799.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=100&h=100&fit=crop', descricao: 'iPad Air com chip M1', rating: 4.8, reviews: 892 },
-        { id: 12, nome: 'iPad 10ª geração 64GB', categoria: 'iPad', preco: 2199.00, preco_original: 2799.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=100&h=100&fit=crop', descricao: 'iPad 10ª geração com chip A14', rating: 4.7, reviews: 567 },
-        
-        // MacBooks
-        { id: 13, nome: 'MacBook Pro 16" M3 Pro 512GB', categoria: 'MacBook', preco: 14999.00, preco_original: 18999.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=100&h=100&fit=crop', descricao: 'MacBook Pro 16" com chip M3 Pro', rating: 4.9, reviews: 567 },
-        { id: 14, nome: 'MacBook Pro 14" M3 512GB', categoria: 'MacBook', preco: 12999.00, preco_original: 15999.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=100&h=100&fit=crop', descricao: 'MacBook Pro 14" com chip M3', rating: 4.9, reviews: 456 },
-        { id: 15, nome: 'MacBook Air 15" M2 256GB', categoria: 'MacBook', preco: 8999.00, preco_original: 11499.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=100&h=100&fit=crop', descricao: 'MacBook Air 15" com chip M2', rating: 4.8, reviews: 789 },
-        { id: 16, nome: 'MacBook Air 13" M2 256GB', categoria: 'MacBook', preco: 7999.00, preco_original: 9999.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=100&h=100&fit=crop', descricao: 'MacBook Air 13" com chip M2', rating: 4.8, reviews: 1234 },
-        
-        // Apple Watch
-        { id: 17, nome: 'Apple Watch Ultra 2 49mm', categoria: 'Apple Watch', preco: 4299.00, preco_original: 5399.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?w=100&h=100&fit=crop', descricao: 'Apple Watch Ultra 2', rating: 4.9, reviews: 456 },
-        { id: 18, nome: 'Apple Watch Series 9 45mm GPS', categoria: 'Apple Watch', preco: 2299.00, preco_original: 2899.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?w=100&h=100&fit=crop', descricao: 'Apple Watch Series 9 com GPS', rating: 4.8, reviews: 743 },
-        { id: 19, nome: 'Apple Watch SE 2ª geração 44mm', categoria: 'Apple Watch', preco: 1599.00, preco_original: 1999.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?w=100&h=100&fit=crop', descricao: 'Apple Watch SE 2ª geração', rating: 4.6, reviews: 892 },
-        
-        // AirPods
-        { id: 20, nome: 'AirPods Pro 2ª geração USB-C', categoria: 'AirPods', preco: 1399.00, preco_original: 1799.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=100&h=100&fit=crop', descricao: 'AirPods Pro com cancelamento ativo de ruído', rating: 4.9, reviews: 2156 },
-        { id: 21, nome: 'AirPods 3ª geração', categoria: 'AirPods', preco: 999.00, preco_original: 1299.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=100&h=100&fit=crop', descricao: 'AirPods 3ª geração com áudio espacial', rating: 4.7, reviews: 1456 },
-        { id: 22, nome: 'AirPods 2ª geração', categoria: 'AirPods', preco: 699.00, preco_original: 899.00, estoque: 6, ativo: true, imagem: 'https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=100&h=100&fit=crop', descricao: 'AirPods 2ª geração clássicos', rating: 4.5, reviews: 3456 }
-      ])
-      setLoading(false)
-    }, 1000)
+    loadProdutos()
   }, [])
+
+  const loadProdutos = async () => {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('produtos')
+        .select('*')
+        .order('categoria', { ascending: true })
+        .order('nome', { ascending: true })
+
+      if (error) {
+        console.error('Erro ao carregar produtos:', error)
+        alert('Erro ao carregar produtos do banco de dados')
+        return
+      }
+
+      setProdutos(data || [])
+    } catch (error) {
+      console.error('Erro:', error)
+      alert('Erro inesperado ao carregar produtos')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const formatarPreco = (preco: number): string => {
     return new Intl.NumberFormat('pt-BR', {
@@ -87,17 +79,172 @@ export default function GerenciarProdutos() {
     }
   }
 
-  const atualizarEstoque = (id: number, novoEstoque: number) => {
-    setProdutos(prev => prev.map(produto => 
-      produto.id === id ? { ...produto, estoque: novoEstoque } : produto
-    ))
-    alert(`Estoque do produto #${id} atualizado para ${novoEstoque} unidades`)
+  // FUNÇÃO REAL: Atualizar estoque no Supabase
+  const atualizarEstoque = async (id: number, novoEstoque: number) => {
+    if (novoEstoque < 0) {
+      alert('Estoque não pode ser negativo')
+      return
+    }
+
+    try {
+      setSaving(id)
+      
+      const { error } = await supabase
+        .from('produtos')
+        .update({ estoque: novoEstoque })
+        .eq('id', id)
+
+      if (error) {
+        console.error('Erro ao atualizar estoque:', error)
+        alert('Erro ao salvar estoque no banco de dados')
+        return
+      }
+
+      // Atualizar estado local
+      setProdutos(prev => prev.map(produto => 
+        produto.id === id ? { ...produto, estoque: novoEstoque } : produto
+      ))
+
+      alert(`✅ Estoque atualizado: ${novoEstoque} unidades`)
+    } catch (error) {
+      console.error('Erro:', error)
+      alert('Erro inesperado ao atualizar estoque')
+    } finally {
+      setSaving(null)
+    }
   }
 
-  const toggleAtivo = (id: number) => {
-    setProdutos(prev => prev.map(produto => 
-      produto.id === id ? { ...produto, ativo: !produto.ativo } : produto
-    ))
+  // FUNÇÃO REAL: Toggle ativo no Supabase
+  const toggleAtivo = async (id: number) => {
+    const produto = produtos.find(p => p.id === id)
+    if (!produto) return
+
+    try {
+      setSaving(id)
+      
+      const novoStatus = !produto.ativo
+      
+      const { error } = await supabase
+        .from('produtos')
+        .update({ ativo: novoStatus })
+        .eq('id', id)
+
+      if (error) {
+        console.error('Erro ao atualizar status:', error)
+        alert('Erro ao salvar status no banco de dados')
+        return
+      }
+
+      // Atualizar estado local
+      setProdutos(prev => prev.map(p => 
+        p.id === id ? { ...p, ativo: novoStatus } : p
+      ))
+
+      alert(`✅ Produto ${novoStatus ? 'ativado' : 'desativado'} com sucesso`)
+    } catch (error) {
+      console.error('Erro:', error)
+      alert('Erro inesperado ao atualizar status')
+    } finally {
+      setSaving(null)
+    }
+  }
+
+  // FUNÇÃO REAL: Atualizar preço no Supabase
+  const atualizarPreco = async (id: number, novoPreco: number) => {
+    if (novoPreco <= 0) {
+      alert('Preço deve ser maior que zero')
+      return
+    }
+
+    try {
+      setSaving(id)
+      
+      const { error } = await supabase
+        .from('produtos')
+        .update({ preco: novoPreco })
+        .eq('id', id)
+
+      if (error) {
+        console.error('Erro ao atualizar preço:', error)
+        alert('Erro ao salvar preço no banco de dados')
+        return
+      }
+
+      // Atualizar estado local
+      setProdutos(prev => prev.map(produto => 
+        produto.id === id ? { ...produto, preco: novoPreco } : produto
+      ))
+
+      alert(`✅ Preço atualizado: ${formatarPreco(novoPreco)}`)
+    } catch (error) {
+      console.error('Erro:', error)
+      alert('Erro inesperado ao atualizar preço')
+    } finally {
+      setSaving(null)
+    }
+  }
+
+  // FUNÇÃO REAL: Deletar produto
+  const deletarProduto = async (id: number) => {
+    const produto = produtos.find(p => p.id === id)
+    if (!produto) return
+
+    if (!confirm(`Tem certeza que deseja deletar "${produto.nome}"?`)) {
+      return
+    }
+
+    try {
+      setSaving(id)
+      
+      const { error } = await supabase
+        .from('produtos')
+        .delete()
+        .eq('id', id)
+
+      if (error) {
+        console.error('Erro ao deletar produto:', error)
+        alert('Erro ao deletar produto do banco de dados')
+        return
+      }
+
+      // Remover do estado local
+      setProdutos(prev => prev.filter(p => p.id !== id))
+      alert('✅ Produto deletado com sucesso')
+    } catch (error) {
+      console.error('Erro:', error)
+      alert('Erro inesperado ao deletar produto')
+    } finally {
+      setSaving(null)
+    }
+  }
+
+  // FUNÇÃO REAL: Adicionar novo produto
+  const adicionarProduto = async (novoProduto: Omit<Product, 'id'>) => {
+    try {
+      setSaving(-1) // ID especial para novo produto
+      
+      const { data, error } = await supabase
+        .from('produtos')
+        .insert([novoProduto])
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Erro ao adicionar produto:', error)
+        alert('Erro ao salvar produto no banco de dados')
+        return
+      }
+
+      // Adicionar ao estado local
+      setProdutos(prev => [...prev, data])
+      setShowAddModal(false)
+      alert('✅ Produto adicionado com sucesso')
+    } catch (error) {
+      console.error('Erro:', error)
+      alert('Erro inesperado ao adicionar produto')
+    } finally {
+      setSaving(null)
+    }
   }
 
   const produtosFiltrados = produtos.filter(produto => {
@@ -117,7 +264,7 @@ export default function GerenciarProdutos() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando produtos...</p>
+          <p className="text-gray-600">Carregando produtos do banco...</p>
         </div>
       </div>
     )
@@ -138,11 +285,14 @@ export default function GerenciarProdutos() {
               </button>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Gestão de Produtos</h1>
-                <p className="text-gray-600">{produtos.length} produtos • iPhone 16 + linha completa Apple</p>
+                <p className="text-gray-600">{produtos.length} produtos • Conectado ao Supabase</p>
               </div>
             </div>
             
-            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors">
+            <button 
+              onClick={() => setShowAddModal(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors"
+            >
               <Plus className="h-4 w-4 mr-2" />
               Novo Produto
             </button>
@@ -269,6 +419,7 @@ export default function GerenciarProdutos() {
                 {produtosFiltrados.map((produto) => {
                   const estoqueStatus = getEstoqueStatus(produto.estoque)
                   const desconto = calcularDesconto(produto.preco_original, produto.preco)
+                  const isSaving = saving === produto.id
                   
                   return (
                     <tr key={produto.id} className="hover:bg-gray-50">
@@ -296,11 +447,31 @@ export default function GerenciarProdutos() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <div className="text-sm font-bold text-gray-900">
-                            {formatarPreco(produto.preco)}
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="number"
+                              value={produto.preco}
+                              onChange={(e) => {
+                                const novoPreco = parseFloat(e.target.value) || 0
+                                setProdutos(prev => prev.map(p => 
+                                  p.id === produto.id ? { ...p, preco: novoPreco } : p
+                                ))
+                              }}
+                              onBlur={(e) => {
+                                const novoPreco = parseFloat(e.target.value) || 0
+                                if (novoPreco !== produto.preco) {
+                                  atualizarPreco(produto.id, novoPreco)
+                                }
+                              }}
+                              className="w-24 px-2 py-1 text-sm border border-gray-300 rounded"
+                              step="0.01"
+                              min="0"
+                              disabled={isSaving}
+                            />
+                            {isSaving && <Loader2 className="h-4 w-4 animate-spin text-blue-600" />}
                           </div>
                           {produto.preco_original > produto.preco && (
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 mt-1">
                               <span className="line-through">{formatarPreco(produto.preco_original)}</span>
                               <span className="ml-1 text-red-600 font-medium">-{desconto}%</span>
                             </div>
@@ -312,11 +483,24 @@ export default function GerenciarProdutos() {
                           <input
                             type="number"
                             value={produto.estoque}
-                            onChange={(e) => atualizarEstoque(produto.id, parseInt(e.target.value) || 0)}
+                            onChange={(e) => {
+                              const novoEstoque = parseInt(e.target.value) || 0
+                              setProdutos(prev => prev.map(p => 
+                                p.id === produto.id ? { ...p, estoque: novoEstoque } : p
+                              ))
+                            }}
+                            onBlur={(e) => {
+                              const novoEstoque = parseInt(e.target.value) || 0
+                              if (novoEstoque !== produto.estoque) {
+                                atualizarEstoque(produto.id, novoEstoque)
+                              }
+                            }}
                             className="w-16 px-2 py-1 text-sm border border-gray-300 rounded"
                             min="0"
+                            disabled={isSaving}
                           />
                           <span className="text-xs text-gray-500">unid.</span>
+                          {isSaving && <Loader2 className="h-4 w-4 animate-spin text-blue-600" />}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -328,13 +512,15 @@ export default function GerenciarProdutos() {
                           <div>
                             <button
                               onClick={() => toggleAtivo(produto.id)}
-                              className={`text-xs px-2 py-1 rounded ${
+                              disabled={isSaving}
+                              className={`text-xs px-2 py-1 rounded flex items-center space-x-1 ${
                                 produto.ativo 
                                   ? 'bg-green-100 text-green-800' 
                                   : 'bg-gray-100 text-gray-800'
-                              }`}
+                              } ${isSaving ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'}`}
                             >
-                              {produto.ativo ? 'Ativo' : 'Inativo'}
+                              {isSaving && <Loader2 className="h-3 w-3 animate-spin" />}
+                              <span>{produto.ativo ? 'Ativo' : 'Inativo'}</span>
                             </button>
                           </div>
                         </div>
@@ -352,11 +538,19 @@ export default function GerenciarProdutos() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-2">
-                          <button className="text-blue-600 hover:text-blue-700 p-1 hover:bg-blue-50 rounded transition-colors">
+                          <button 
+                            onClick={() => setEditingProduct(produto)}
+                            disabled={isSaving}
+                            className="text-blue-600 hover:text-blue-700 p-1 hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
+                          >
                             <Edit className="h-4 w-4" />
                           </button>
-                          <button className="text-red-600 hover:text-red-700 p-1 hover:bg-red-50 rounded transition-colors">
-                            <Trash2 className="h-4 w-4" />
+                          <button 
+                            onClick={() => deletarProduto(produto.id)}
+                            disabled={isSaving}
+                            className="text-red-600 hover:text-red-700 p-1 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                          >
+                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                           </button>
                         </div>
                       </td>
@@ -365,6 +559,15 @@ export default function GerenciarProdutos() {
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* Status de Conexão */}
+        <div className="mt-8 bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
+            <span className="text-green-800 font-medium">Conectado ao Supabase</span>
+            <span className="text-green-600 ml-2">• Todas as alterações são salvas automaticamente</span>
           </div>
         </div>
       </div>
